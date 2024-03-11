@@ -1,0 +1,395 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.BIRunID.Declare(Long,-1)
+Variable.Global.BILogID.Declare(Long,-1)
+Variable.UDT.EatonLbl.Define("ORDER_NO",String)
+Variable.UDT.EatonLbl.Define("DATE",Date)
+Variable.UDT.EatonLbl.Define("CUST_PO",String)
+Variable.UDT.EatonLbl.Define("SEQUENCE",String)
+Variable.UDT.EatonLbl.Define("ORDER_LINE",String)
+Variable.UDT.EatonLbl.Define("PART",String)
+Variable.UDT.EatonLbl.Define("REVISION",String)
+Variable.UDT.EatonLbl.Define("QTY_PKGD",Long)
+Variable.uGlobal.uEatonLbl.Declare("EatonLbl")
+Variable.UDT.HuscoLbl.Define("PLIST",String)
+Variable.UDT.HuscoLbl.Define("QTY_PKGD",Float)
+Variable.UDT.HuscoLbl.Define("REVISION",String)
+Variable.UDT.HuscoLbl.Define("PART",String)
+Variable.UDT.HuscoLbl.Define("SERIAL",String)
+Variable.UDT.HuscoLbl.Define("CUST_PO",String)
+Variable.UDT.HuscoLbl.Define("SUPPLIER",String)
+Variable.UDT.HuscoLbl.Define("ORDER_NO",String)
+Variable.UDT.HuscoLbl.Define("NAME_CUSTOMER_SHIP",String)
+Variable.UDT.HuscoLbl.Define("ADDRESS_1_SHIP",String)
+Variable.UDT.HuscoLbl.Define("ADDRESS_3_SHIP",String)
+Variable.UDT.HuscoLbl.Define("ADDRESS_2_SHIP",String)
+Variable.UDT.HuscoLbl.Define("ADDRESS_4_SHIP",String)
+Variable.UDT.HuscoLbl.Define("ADDRESS_5_SHIP",String)
+Variable.UDT.HuscoLbl.Define("CITY_SHIP",String)
+Variable.UDT.HuscoLbl.Define("STATE_SHIP",String)
+Variable.UDT.HuscoLbl.Define("CODE_ZIP_SHIP",String)
+Variable.UDT.HuscoLbl.Define("COUNTRY_SHIP",String)
+Variable.uGlobal.uHuscoLbl.Declare("HuscoLbl")
+Variable.Global.sCustomer.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.If(V.Passed.009001.Long,=,77)
+	F.Intrinsic.Control.CallSub(Init)
+F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3918_CS_BOL_Label.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.SetErrorHandler("Unload_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Unload_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3918_CS_BOL_Label.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Unload.End
+
+Program.Sub.Init.Start
+F.Intrinsic.Control.SetErrorHandler("Init_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.iBIRptID.Declare(Long)
+
+'Getting BI Run ID
+F.Global.BI.GetRunID(V.Global.BIRunID)
+
+'Initializing UDTs
+V.uGlobal.uEatonLbl.Redim(-1,-1)
+V.uGlobal.uHuscoLbl.Redim(-1,-1)
+
+'Checking customer on Waybill
+F.Intrinsic.String.Concat("Select ORDER_NO from SHIP_LABEL_PART where WAYBILL_NO = '",V.Passed.BIP_Waybill,"' and PALLET_FLAG <> 'Y'",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,False)
+	'Checking customer on order
+	F.Intrinsic.String.Concat("Select CUSTOMER from V_ORDER_HEADER where ORDER_NO = '",V.ODBC.con!rst.FieldValTrim!ORDER_NO,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstChk",V.Local.sSql)
+	F.Intrinsic.Control.If(V.ODBC.con!rstChk.EOF,=,False)
+		'Based on customer processing specific label
+		F.Intrinsic.Control.SelectCase(V.ODBC.con!rstChk.FieldValTrim!CUSTOMER)
+			F.Intrinsic.Control.Case("EH008")
+				V.Passed.CANCEL.Set("1")
+				V.Global.sCustomer.Set("EH008")
+				F.Global.BI.GetIDFromName("OE_3918_LBL_BOL_Eaton.lab",V.Local.iBIRptID)
+				'Starting BI Logging
+				F.Global.BI.StartLogging(V.Global.BIRunID,V.Local.iBIRptID,-1,"",V.Global.BILogID)
+				F.Intrinsic.Control.CallSub(Processeaton)
+			F.Intrinsic.Control.Case("HA001")
+				V.Passed.CANCEL.Set("1")
+				V.Global.sCustomer.Set("HA001")
+				F.Global.BI.GetIDFromName("OE_3918_LBL_BOL_Husco.lab",V.Local.iBIRptID)
+				'Starting BI Logging
+				F.Global.BI.StartLogging(V.Global.BIRunID,V.Local.iBIRptID,-1,"",V.Global.BILogID)
+				F.Intrinsic.Control.CallSub(Processhusco)
+			F.Intrinsic.Control.Case("HA002")
+				V.Passed.CANCEL.Set("1")
+				V.Global.sCustomer.Set("HA002")
+				F.Global.BI.GetIDFromName("OE_3918_LBL_BOL_Husco.lab",V.Local.iBIRptID)
+				'Starting BI Logging
+				F.Global.BI.StartLogging(V.Global.BIRunID,V.Local.iBIRptID,-1,"",V.Global.BILogID)
+				F.Intrinsic.Control.CallSub(Processhusco)
+			F.Intrinsic.Control.Case("HA003")
+				V.Passed.CANCEL.Set("1")
+				V.Global.sCustomer.Set("HA003")
+				F.Global.BI.GetIDFromName("OE_3918_LBL_BOL_Husco.lab",V.Local.iBIRptID)
+				'Starting BI Logging
+				F.Global.BI.StartLogging(V.Global.BIRunID,V.Local.iBIRptID,-1,"",V.Global.BILogID)
+				F.Intrinsic.Control.CallSub(Processhusco)
+			F.Intrinsic.Control.Case("HA006X")
+				V.Passed.CANCEL.Set("1")
+				V.Global.sCustomer.Set("HA006X")
+				F.Global.BI.GetIDFromName("OE_3918_LBL_BOL_Husco.lab",V.Local.iBIRptID)
+				'Starting BI Logging
+				F.Global.BI.StartLogging(V.Global.BIRunID,V.Local.iBIRptID,-1,"",V.Global.BILogID)
+				F.Intrinsic.Control.CallSub(Processhusco)
+		F.Intrinsic.Control.EndSelect
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rstChk.Close
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rst.Close
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Init_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3918_CS_BOL_Label.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Init.End
+
+Program.Sub.ProcessEaton.Start
+F.Intrinsic.Control.SetErrorHandler("ProcessEaton_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.iUB.Declare(Long)
+V.Local.iSeqCount.Declare(Long)
+V.Local.sLastOrder.Declare(String)
+V.Local.sLastLine.Declare(String)
+V.Local.i.Declare(Long)
+V.Local.sPart.Declare(String)
+V.Local.sElementLists.Declare(String)
+
+'UB variable for UDT
+V.Local.iUB.Set(-1)
+
+'Setting sequence count used to keep up with container count for each order line
+V.Local.iSeqCount.Set(0)
+
+'Setting element list
+V.Local.sElementLists.Set("ORDER_NO*!*DATE*!*CUST_PO*!*SEQUENCE*!*ORDER_LINE*!*PART*!*REVISION*!*QTY_PKGD")
+
+'Processing waybill label records into UDT for print
+F.Intrinsic.String.Concat("Select CUST_PART, PART, QTY_PKGD, ORDER_NO, ORDER_LINE, CUST_PO from SHIP_LABEL_PART where WAYBILL_NO = '",V.Passed.BIP_Waybill,"' and PALLET_FLAG <> 'Y' ORDER BY ORDER_NO, ORDER_LINE",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	'Rediming UDT to 0
+	F.Intrinsic.Control.If(V.uGlobal.uEatonLbl.UBound,=,-1)
+		V.uGlobal.uEatonLbl.Redim(0,0)
+	F.Intrinsic.Control.EndIf
+
+	'Checking sequence to see if it needs incremented or reset
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!ORDER_NO,=,V.Local.sLastOrder)
+		F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!ORDER_LINE,=,V.Local.sLastLine)
+			F.Intrinsic.Math.Add(V.Local.iSeqCount,1,V.Local.iSeqCount)
+		F.Intrinsic.Control.Else
+			V.Local.iSeqCount.Set(1)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Else
+		V.Local.iSeqCount.Set(1)
+	F.Intrinsic.Control.EndIf
+
+	'Moving UDT ubound
+	F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+	V.uGlobal.uEatonLbl.RedimPreserve(0,V.Local.iUB)
+
+	'Adding records to UDT
+	'Formatting Part for UDT
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!CUST_PART,=,"")
+		F.Intrinsic.String.Left(V.ODBC.con!rst.FieldValTrim!PART,17,V.Local.sPart)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Left(V.ODBC.con!rst.FieldValTrim!CUST_PART,17,V.Local.sPart)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.UCase(V.Local.sPart,V.Local.sPart)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!PART.Set(V.Local.sPart)
+
+	'Formatting Revision for UDT
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!CUST_PART,=,"")
+		F.Intrinsic.String.Right(V.ODBC.con!rst.FieldValTrim!PART,3,V.Local.sPart)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Right(V.ODBC.con!rst.FieldValTrim!CUST_PART,3,V.Local.sPart)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.UCase(V.Local.sPart,V.Local.sPart)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!REVISION.Set(V.Local.sPart)
+
+	V.uGlobal.uEatonLbl(V.Local.iUB)!QTY_PKGD.Set(V.ODBC.con!rst.FieldValFloat!QTY_PKGD)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!ORDER_NO.Set(V.ODBC.con!rst.FieldValTrim!ORDER_NO)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!ORDER_LINE.Set(V.ODBC.con!rst.FieldValTrim!ORDER_LINE)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!DATE.Set(V.Ambient.Date)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!CUST_PO.Set(V.ODBC.con!rst.FieldValTrim!CUST_PO)
+	V.uGlobal.uEatonLbl(V.Local.iUB)!SEQUENCE.Set(V.Local.iSeqCount.String)
+
+	'Setting Last order and line
+	V.Local.sLastOrder.Set(V.ODBC.con!rst.FieldValTrim!ORDER_NO)
+	V.Local.sLastLine.Set(V.ODBC.con!rst.FieldValTrim!ORDER_LINE)
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+'Cearling Last order and line
+V.Local.sLastOrder.Set("")
+V.Local.sLastLine.Set("")
+
+'Looping through UDT backawards to format text that goes into SEQUENCE, this needs to grab the greatest sequence number to be the total count and form a text such a "1 Of 10", "2 Of 10" for each record for the total record count
+F.Intrinsic.Control.For(V.Local.i,V.uGlobal.uEatonLbl.UBound,V.uGlobal.uEatonLbl.LBound,-1)
+	'Checking sequence needs to grab new maximum
+	F.Intrinsic.Control.If(V.uGlobal.uEatonLbl(V.Local.i)!ORDER_NO,=,V.Local.sLastOrder)
+		F.Intrinsic.Control.If(V.uGlobal.uEatonLbl(V.Local.i)!ORDER_LINE,<>,V.Local.sLastLine)
+			V.Local.iSeqCount.Set(V.uGlobal.uEatonLbl(V.Local.i)!SEQUENCE.Long)
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Else
+		V.Local.iSeqCount.Set(V.uGlobal.uEatonLbl(V.Local.i)!SEQUENCE.Long)
+	F.Intrinsic.Control.EndIf
+
+	'Forming text for sequence
+	F.Intrinsic.String.Concat(V.uGlobal.uEatonLbl(V.Local.i)!SEQUENCE.String," Of ",V.Local.iSeqCount.String,V.uGlobal.uEatonLbl(V.Local.i)!SEQUENCE)
+F.Intrinsic.Control.Next(V.Local.i)
+
+
+'Print passing UDt
+F.Intrinsic.Control.If(V.uGlobal.uEatonLbl.UBound,>,-1)
+	F.Global.BI.PrintCodesoftLabelFromUDT(V.Global.BIRunID,V.Global.BILogID,"uGlobal.uEatonLbl",V.Local.sElementLists,"",True)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("ProcessEaton_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3918_CS_BOL_Label.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.ProcessEaton.End
+
+Program.Sub.ProcessHusco.Start
+F.Intrinsic.Control.SetErrorHandler("ProcessHusco_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.iUB.Declare(Long)
+V.Local.sPart.Declare(String)
+V.Local.sSerial.Declare(String)
+V.Local.sSupplier.Declare(String)
+V.Local.sElementLists.Declare(String)
+
+'UB variable for UDT
+V.Local.iUB.Set(-1)
+
+'Setting element list
+V.Local.sElementLists.Set("PLIST*!*QTY_PKGD*!*REVISION*!*PART*!*SERIAL*!*CUST_PO*!*SUPPLIER*!*ORDER_NO*!*NAME_CUSTOMER_SHIP*!*ADDRESS_1_SHIP*!*ADDRESS_2_SHIP*!*ADDRESS_3_SHIP*!*ADDRESS_4_SHIP*!*ADDRESS_5_SHIP*!*CITY_SHIP*!*STATE_SHIP*!*CODE_ZIP_SHIP*!*COUNTRY_SHIP")
+
+'Processing waybill label records into UDT for print
+F.Intrinsic.String.Concat("Select PLIST, QTY_PKGD, CUST_PART, PART, USER_DFND_NO, CNTNR_NO, CUST_PO, ORDER_NO from SHIP_LABEL_PART where WAYBILL_NO = '",V.Passed.BIP_Waybill,"' and PALLET_FLAG <> 'Y' ORDER BY ORDER_NO, ORDER_LINE",V.Local.sSql)
+F.ODBC.Connection!con.OpenLocalRecordsetRO("rst",V.Local.sSql)
+F.Intrinsic.Control.DoUntil(V.ODBC.con!rst.EOF,=,True)
+	'Rediming UDT to 0
+	F.Intrinsic.Control.If(V.uGlobal.uHuscoLbl.UBound,=,-1)
+		V.uGlobal.uHuscoLbl.Redim(0,0)
+	F.Intrinsic.Control.EndIf
+
+	'Moving UDT ubound
+	F.Intrinsic.Math.Add(V.Local.iUB,1,V.Local.iUB)
+	V.uGlobal.uHuscoLbl.RedimPreserve(0,V.Local.iUB)
+
+	'Adding record to UDT
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!PLIST.Set(V.ODBC.con!rst.FieldValTrim!PLIST)
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!QTY_PKGD.Set(V.ODBC.con!rst.FieldValFloat!QTY_PKGD)
+
+	'Formatting Part for UDT
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!CUST_PART,=,"")
+		F.Intrinsic.String.Left(V.ODBC.con!rst.FieldValTrim!PART,17,V.Local.sPart)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Left(V.ODBC.con!rst.FieldValTrim!CUST_PART,17,V.Local.sPart)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.UCase(V.Local.sPart,V.Local.sPart)
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!PART.Set(V.Local.sPart)
+
+	'Formatting Revision for UDT
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!CUST_PART,=,"")
+		F.Intrinsic.String.Right(V.ODBC.con!rst.FieldValTrim!PART,3,V.Local.sPart)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Right(V.ODBC.con!rst.FieldValTrim!CUST_PART,3,V.Local.sPart)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.UCase(V.Local.sPart,V.Local.sPart)
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!REVISION.Set(V.Local.sPart)
+
+	'Formatting Serial for UDT
+	F.Intrinsic.Control.If(V.ODBC.con!rst.FieldValTrim!USER_DFND_NO,=,"")
+		V.Local.sSerial.Set(V.ODBC.con!rst.FieldValTrim!USER_DFND_NO)
+	F.Intrinsic.Control.Else
+		V.Local.sSerial.Set(V.ODBC.con!rst.FieldValTrim!CNTNR_NO)
+	F.Intrinsic.Control.EndIf
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!SERIAL.Set(V.Local.sSerial)
+
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!CUST_PO.Set(V.ODBC.con!rst.FieldValTrim!CUST_PO)
+
+	'Formatting Supplier for UDT
+	F.Intrinsic.Control.SelectCase(V.Global.sCustomer)
+		F.Intrinsic.Control.Case("HA001")
+			V.Local.sSupplier.Set("WIS01T")
+		F.Intrinsic.Control.Case("HA002")
+			V.Local.sSupplier.Set("WIS01P")
+		F.Intrinsic.Control.Case("HA003")
+			V.Local.sSupplier.Set("WIS01A")
+		F.Intrinsic.Control.Case("HA006X")
+			V.Local.sSupplier.Set("WICO01")
+	F.Intrinsic.Control.EndSelect
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!SUPPLIER.Set(V.Local.sSupplier)
+
+	V.uGlobal.uHuscoLbl(V.Local.iUB)!ORDER_NO.Set(V.ODBC.con!rst.FieldValTrim!ORDER_NO)
+
+	'Getting order ship to info for UDT
+	F.Intrinsic.String.Concat("Select NAME_CUSTOMER_SHIP, ADDRESS_1_SHIP, ADDRESS_2_SHIP, ADDRESS_3_SHIP, ADDRESS_4_SHIP, ADDRESS_5_SHIP, CITY_SHIP, STATE_SHIP, CODE_ZIP_SHIP, COUNTRY_SHIP From V_ORDER_SHIP_TO where ORDER_NO = '",V.ODBC.con!rst.FieldValTrim!ORDER_NO,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRO("rstShipTo",V.Local.sSql)
+	F.Intrinsic.Control.If(V.ODBC.con!rstShipTo.EOF,=,False)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!NAME_CUSTOMER_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!NAME_CUSTOMER_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!ADDRESS_1_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!ADDRESS_1_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!ADDRESS_2_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!ADDRESS_2_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!ADDRESS_3_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!ADDRESS_3_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!ADDRESS_4_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!ADDRESS_4_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!ADDRESS_5_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!ADDRESS_5_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!CITY_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!CITY_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!STATE_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!STATE_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!CODE_ZIP_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!CODE_ZIP_SHIP)
+		V.uGlobal.uHuscoLbl(V.Local.iUB)!COUNTRY_SHIP.Set(V.ODBC.con!rstShipTo.FieldValTrim!COUNTRY_SHIP)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rstShipTo.Close
+
+	F.ODBC.con!rst.MoveNext
+F.Intrinsic.Control.Loop
+F.ODBC.con!rst.Close
+
+'Print passing UDt
+F.Intrinsic.Control.If(V.uGlobal.uHuscoLbl.UBound,>,-1)
+	F.Global.BI.PrintCodesoftLabelFromUDT(V.Global.BIRunID,V.Global.BILogID,"uGlobal.uHuscoLbl",V.Local.sElementLists,"",True)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("ProcessHusco_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_3918_CS_BOL_Label.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.ProcessHusco.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_CS_SO_Label_5100$}$Mitch$}$12/30/2013
+${$1$}$$}$$}$0$}$16090$}$BSI005-PRE-PROCESS-HOOK$}$12/30/2013 11:11:01 AM$}$(Program: BSI005; Screen: )
+
+Program.Sub.Comments.End
+
